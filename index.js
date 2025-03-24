@@ -5,12 +5,34 @@
 // process.argv[3] → Second argument
 
 const fs = require('fs');
+const path = require('path');
 
 const args = process.argv.slice(2);
 
 const command = args[0];
 const fileName = args[1];
 const content = args.slice(2).join(" "); //content to write in the file for write/append cmds
+const targetPath = args[2] || ".";
+
+function searchFile(directory,fileName){//searching in subdirect
+    fs.readdir(directory,{withFileTypes:true}, (err,files)=>{
+        if(err){
+            console.error(`Error reading directory ${directory}:`, err.message);
+            return;
+        }
+
+        for(const file of files){
+            const fullPth = path.join(directory,file.name); 
+
+            if(file.isDirectory()){
+                searchFile(fullPth,fileName);
+            }
+            else if(file.name.toLowerCase() === fileName.toLowerCase()){
+                console.log(`File found: ${fullPth}`);
+            }
+        }
+    });
+}
 
 switch(command){
     case 'read':
@@ -34,7 +56,7 @@ switch(command){
             return console.error(`Format is : node index.js write <filename> <content>`);
         }
 
-        fs.writeFile(fileName,`${content}`, (err)=>{
+        fs.writeFile(fileName,`\n${content}`, (err)=>{
             if(err){
                 console.error(`Some error occurred while writing to the file ${err.message}`);
             }
@@ -45,12 +67,21 @@ switch(command){
         if(!fileName){
         return console.error(`File not found!`);
         }
-        fs.appendFile(fileName,`${content}`, (err)=> {
+        fs.appendFile(fileName,`\n${content}`, (err)=> {
             if(err){
                 console.error(`Some error occurred while appending content to the file ${err.message}`);
+                return;
             }
             console.log(`Content written to the file ${fileName} successfully`);
         });
+        break;
+    case 'search': 
+        // const fileName = args[1];
+        if(!fileName){
+            return console.error(`File not found!`);
+        }
+        console.log(`Searching File ${fileName} ...`);
+        searchFile(targetPath,fileName);
         break;
     case 'delete':
         if(!fileName){
@@ -64,12 +95,12 @@ switch(command){
         });
         break;
 
-        default:
+    default:
             console.log(`\nUsage:
         node index.js read <filename>     # Read a file
         node index.js write <filename> <content>  # Write to a file
         node index.js append <filename> <content> # Append to a file
+        node index.js search <filename> [dir]  # Search for a file (recursively)
         node index.js delete <filename>   # Delete a file`);
-    
-    }
-    
+
+}
