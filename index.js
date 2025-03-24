@@ -1,46 +1,75 @@
-//creating a cli that lets user specify a file path and nodejs process counts the no of lines inside it
-//input : node index.js /users/khushi/cli_command/index.txt
-//output : you have 10 words in this file
+//using built in process.argv and fs module
+// process.argv[0] → Path to Node.js
+// process.argv[1] → Path to the script/filename
+// process.argv[2] → First argument
+// process.argv[3] → Second argument
 
 const fs = require('fs');
-const { Command } = require('commander');
-const program = new Command();
 
+const args = process.argv.slice(2);
 
-program.name('counter').description('CLI to do file based tasks').version('0.0.1');
+const command = args[0];
+const fileName = args[1];
+const content = args.slice(2).join(" "); //content to write in the file for write/append cmds
 
-//counting number of lines in a file
-program.command('count').description('Counting the number of lines in a file').arguments('<file>', 'file to count the lines').action((file) => {
-    fs.readFile(file, 'utf-8', (err,data) => {
-        if(err){
-            console.log(err);
+switch(command){
+    case 'read':
+        if(!fileName){
+            console.error("File not found!");
+            return;
         }
-        else{
-            const lines = data.split('\n').length;
-            console.log(`There are ${lines} lines in ${file}`);
-        }
-    });
-});
-
-//counting number of words in a file
-program.command('count_words').description('Counting the number of words in a file').arguments('<file>', 'file to count the words').action((file) => {
-    fs.readFile(file, 'utf-8', (err,data) => {
-        if(err){
-            console.log(err);
-        }
-        else{
-            let words = 0;
-            for(let i=0;i<=data.length;i++){
-                if(data[i] == " "){
-                    words+=1;
-                }
+        fs.readFile(fileName,'utf-8',(err,data)=>{
+            if(err){
+                return console.error(`Error reading the file content ${err.message}`);
             }
-            console.log(`There are ${words+1} words in ${file}`);
+            console.log(`Contents of the file are : ${data}`);
+        });
+        break;
+    
+    case 'write':
+        if(!fileName){
+            return console.error(`File not found!`);
         }
-    });
-});
+        else if(!content){
+            return console.error(`Format is : node index.js write <filename> <content>`);
+        }
 
+        fs.writeFile(fileName,`${content}`, (err)=>{
+            if(err){
+                console.error(`Some error occurred while writing to the file ${err.message}`);
+            }
+            console.log(`Content written to file ${fileName} successfully`);
+        });
+        break;
+    case 'append':
+        if(!fileName){
+        return console.error(`File not found!`);
+        }
+        fs.appendFile(fileName,`${content}`, (err)=> {
+            if(err){
+                console.error(`Some error occurred while appending content to the file ${err.message}`);
+            }
+            console.log(`Content written to the file ${fileName} successfully`);
+        });
+        break;
+    case 'delete':
+        if(!fileName){
+            return console.error(`File not found!`);
+        }
+        fs.unlink(fileName, (err) => {
+            if(err){
+                return console.error(`Some error occurred while deleting the file ${err.message}`);
+            }
+            console.log(`${fileName} was successfully deleted`);
+        });
+        break;
 
-program.parse();
-
-
+        default:
+            console.log(`\nUsage:
+        node index.js read <filename>     # Read a file
+        node index.js write <filename> <content>  # Write to a file
+        node index.js append <filename> <content> # Append to a file
+        node index.js delete <filename>   # Delete a file`);
+    
+    }
+    
