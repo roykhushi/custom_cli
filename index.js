@@ -7,12 +7,64 @@
 const fs = require('fs');
 const path = require('path');
 
-const args = process.argv.slice(2);
+const args = process.argv.slice(2); //cli args
 
 const command = args[0];
-const fileName = args[1];
+const fileName = args[1]; //or direc path
 const content = args.slice(2).join(" "); //content to write in the file for write/append cmds
 const targetPath = args[2] || ".";
+
+//file organizer -> divinding files based on their ext eg .jpeg,png into Images etc therefore, scan the direct into folders
+
+if(args.length < 2){
+    console.log(`Usage: node index.js organize <directory-path>`);
+    process.exit(1);
+}
+
+const fileTypes = {
+    Images: ['.jpg', '.jpeg', '.png', '.gif', '.svg'],
+    Documents: ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx'],
+    Music: ['.mp3', '.wav', '.flac'],
+    Videos: ['.mp4', '.mkv', '.mov', '.avi'],
+    Archives: ['.zip', '.rar', '.tar', '.gz'],
+    Code: ['.js', '.html', '.css', '.py', '.java', '.cpp', '.ts'],
+};
+
+function organizeFiles(direct){
+    if(!fs.existsSync(direct)){
+        console.log(`Directory does not exit!`);
+        return;
+    }
+
+    const files = fs.readdirSync(direct);
+
+    files.forEach(file => {
+        const filePath = path.join(direct,file);
+        const fileExt = path.extname(file).toLowerCase();
+
+        if(fs.statSync(filePath).isFile()){
+            let folderName = 'Others'; //default 
+
+            for(const [category,extensions] of Object.entries(fileTypes)){
+                if(extensions.includes(fileExt)){
+                    folderName = category;
+                    break;
+                }
+            }
+
+            const folderPath = path.join(direct,folderName);
+            if(!fs.existsSync(folderPath)){
+                fs.mkdirSync(folderPath);
+            }
+
+            const newFilePath = path.join(folderPath,file);
+            fs.renameSync(filePath,newFilePath);
+            console.log(`📂 Moved : ${file} -> ${folderName}/`);
+        }
+    });
+
+    console.log(`File organization process is completed! 🎉`);
+}
 
 function searchFile(directory,fileName){//searching in subdirect
     fs.readdir(directory,{withFileTypes:true}, (err,files)=>{
@@ -34,7 +86,85 @@ function searchFile(directory,fileName){//searching in subdirect
     });
 }
 
+//restoring the initial structure before restoring
+const originalStructure = 'original.json';
+
+// function saveOriginalStructure(directory){ //call this function before organizing stuff
+//     let restored = {};
+
+//     fs.readdirSync(directory).forEach(file => {
+//         const filePath = path.join(directory,file);
+
+//         if(fs.statSync(filePath).isFile()){
+//             restored[file] = filePath; //restoring original path
+//         }
+//     });
+
+//     fs.writeFileSync(originalStructure,JSON.stringify(restored,null,2));
+//     console.log(`Original structure is saved before organizing`);
+// }
+
+// function restoreOriginalStructure() {
+//     try {
+//         const org = JSON.parse(fs.readFileSync(originalStructure, 'utf-8'));
+
+//         Object.entries(org).forEach(([file, originalPath]) => {
+//             // Use the directory of the originalStructure file as the base search directory
+//             const baseDir = path.dirname(path.resolve(originalStructure));
+            
+//             // Recursive search function
+//             function findFileInDirectory(searchDir) {
+//                 const files = fs.readdirSync(searchDir, { withFileTypes: true });
+                
+//                 for (const fileEntry of files) {
+//                     const fullPath = path.join(searchDir, fileEntry.name);
+                    
+//                     if (fileEntry.isDirectory()) {
+//                         // Recursively search subdirectories
+//                         findFileInDirectory(fullPath);
+//                     } else if (fileEntry.name === file) {
+//                         // Move file back to original path
+//                         fs.renameSync(fullPath, originalPath);
+//                         console.log(`✓ Restored: ${file} -> ${originalPath}`);
+//                         return true;
+//                     }
+//                 }
+//                 return false;
+//             }
+
+//             // Start recursive search from base directory
+//             findFileInDirectory(baseDir);
+//         });
+
+//         fs.unlinkSync(originalStructure);
+//         console.log('🎉 Restoration complete!');
+//     } catch (error) {
+//         console.error('Error during restoration:', error.message);
+//     }
+// }
+
 switch(command){
+    case 'organize':
+        if(!fileName){
+            console.error("File not found!");
+            return;
+        }
+        saveOriginalStructure(fileName);
+        organizeFiles(fileName);
+        break;
+    
+    case 'restore': 
+        try {
+            if (!fs.existsSync(originalStructure)) {
+                console.error('No original structure found! Did you organize files first?');
+                return;
+            }
+            restoreOriginalStructure();
+        } catch (error) {
+            console.error('Error during restoration:', error.message);
+        }
+        break;
+
     case 'read':
         if(!fileName){
             console.error("File not found!");
@@ -97,6 +227,7 @@ switch(command){
 
     default:
             console.log(`\nUsage:
+        node index.js organize <filename> #Organize files based on their extension
         node index.js read <filename>     # Read a file
         node index.js write <filename> <content>  # Write to a file
         node index.js append <filename> <content> # Append to a file
